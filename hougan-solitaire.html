@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="方眼ソリティア">
+<title>方眼ソリティア - つくる手帖</title>
+<style>
+:root{
+  --paper:#f6f2e7;
+  --grid:rgba(70,115,155,.13);
+  --grid2:rgba(70,115,155,.22);
+  --indigo:#2c5077;
+  --indigo-deep:#1e3a58;
+  --ink:#24425e;
+  --vermillion:#c9472e;
+  --card:#fffdf6;
+  --cw:48px;
+  --ch:70px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif;
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid2) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid2) 1px,transparent 1px),
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:40px 40px,40px 40px,8px 8px,8px 8px;
+  color:var(--ink);
+  touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overflow-x:hidden;
+}
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px 4px;max-width:640px;margin:0 auto;flex-wrap:wrap;gap:4px;
+}
+h1{
+  font-size:17px;font-weight:700;color:var(--indigo-deep);letter-spacing:.06em;
+}
+h1 .mark{color:var(--vermillion);}
+.stats{display:flex;gap:12px;font-size:12px;color:var(--indigo);font-variant-numeric:tabular-nums;}
+.stats b{font-weight:700;}
+.btns{display:flex;gap:6px;}
+button{
+  font-family:inherit;font-size:12px;font-weight:600;
+  color:var(--indigo-deep);background:var(--card);
+  border:1.5px solid var(--indigo);border-radius:6px;
+  padding:5px 10px;cursor:pointer;
+}
+button:active{background:var(--indigo);color:var(--card);}
+button.accent{border-color:var(--vermillion);color:var(--vermillion);}
+button.accent:active{background:var(--vermillion);color:var(--card);}
+#board{max-width:640px;margin:4px auto 24px;padding:0 6px;}
+.row-top{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px;
+}
+#tableau{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+}
+.pile{position:relative;min-height:var(--ch);}
+.slot{
+  position:absolute;top:0;left:0;width:var(--cw);height:var(--ch);
+  border:1.5px dashed rgba(44,80,119,.35);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--cw)*.45);color:rgba(44,80,119,.25);
+}
+.card{
+  position:absolute;left:0;width:var(--cw);height:var(--ch);
+  border-radius:6px;border:1.5px solid var(--indigo);
+  background:var(--card);
+  box-shadow:0 1px 2px rgba(30,58,88,.18);
+  overflow:hidden;
+  touch-action:none;
+}
+.drag-layer{
+  position:fixed;z-index:50;pointer-events:none;
+  filter:drop-shadow(0 6px 12px rgba(30,58,88,.35));
+}
+.drag-layer .card{transform:scale(1.03);}
+.lifting{opacity:.35;}
+.drop-ok{outline:2.5px solid var(--indigo);outline-offset:1px;}
+.card.red{color:var(--vermillion);border-color:var(--vermillion);}
+.card.black{color:var(--ink);}
+.card .corner{
+  position:absolute;top:2px;left:4px;line-height:1.05;
+  font-weight:700;font-size:calc(var(--cw)*.30);
+}
+.card .corner .suit{font-size:calc(var(--cw)*.28);display:block;}
+.card .big{
+  position:absolute;right:3px;bottom:1px;
+  font-size:calc(var(--cw)*.52);opacity:.85;
+}
+.card.down{
+  background-color:var(--indigo);
+  background-image:
+    linear-gradient(rgba(246,242,231,.28) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(246,242,231,.28) 1px,transparent 1px);
+  background-size:7px 7px;
+  border-color:var(--indigo-deep);
+}
+.card.moved{animation:pop .18s ease-out;}
+@keyframes pop{from{transform:scale(1.08);}to{transform:scale(1);}}
+.hint{
+  outline:2.5px solid var(--vermillion);outline-offset:1px;
+  animation:hintPulse .9s ease-in-out 3;z-index:5;
+}
+@keyframes hintPulse{
+  0%,100%{outline-color:var(--vermillion);}
+  50%{outline-color:rgba(201,71,46,.15);}
+}
+#msg{
+  position:fixed;bottom:64px;left:50%;transform:translateX(-50%);
+  background:var(--indigo-deep);color:var(--card);
+  font-size:13px;font-weight:600;letter-spacing:.04em;
+  padding:8px 18px;border-radius:8px;white-space:nowrap;
+  opacity:0;transition:opacity .3s;pointer-events:none;z-index:30;
+}
+#msg.show{opacity:1;}
+@media (prefers-reduced-motion:reduce){
+  .card.moved{animation:none;}
+  .hint{animation:none;}
+  .confetti{display:none;}
+}
+#overlay{
+  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(246,242,231,.88);z-index:20;flex-direction:column;gap:14px;
+}
+#overlay.show{display:flex;}
+#overlay .banner{
+  font-size:44px;font-weight:800;color:var(--vermillion);letter-spacing:.12em;
+  text-shadow:0 2px 0 rgba(30,58,88,.15);
+}
+#overlay .detail{font-size:15px;color:var(--indigo-deep);font-weight:600;}
+.confetti{
+  position:fixed;top:-14px;width:9px;height:14px;z-index:19;border-radius:2px;
+  animation:fall linear forwards;
+}
+@keyframes fall{
+  to{transform:translateY(110vh) rotate(720deg);}
+}
+footer{
+  text-align:center;font-size:11px;color:rgba(44,80,119,.55);
+  padding:4px 0 14px;letter-spacing:.05em;
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>方眼<span class="mark">ソリティア</span></h1>
+  <div class="stats">
+    <span>手数 <b id="moves">0</b></span>
+    <span>時間 <b id="time">0:00</b></span>
+  </div>
+  <div class="btns">
+    <button id="btnDraw">めくり: 1枚</button>
+    <button id="btnHint">ヒント</button>
+    <button id="btnUndo">戻す</button>
+    <button id="btnNew" class="accent">新しいゲーム</button>
+  </div>
+</header>
+
+<div id="msg"></div>
+
+<div id="board">
+  <div class="row-top">
+    <div class="pile" id="stock"></div>
+    <div class="pile" id="waste"></div>
+    <div class="pile"></div>
+    <div class="pile" data-f="0" id="f0"></div>
+    <div class="pile" data-f="1" id="f1"></div>
+    <div class="pile" data-f="2" id="f2"></div>
+    <div class="pile" data-f="3" id="f3"></div>
+  </div>
+  <div id="tableau"></div>
+  <div style="text-align:center;margin-top:14px;">
+    <button id="btnAuto" class="accent" style="display:none;">自動でそろえる</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="banner">完成！</div>
+  <div class="detail" id="result"></div>
+  <button id="btnAgain" class="accent">もう一度あそぶ</button>
+</div>
+
+<footer>つくる手帖</footer>
+
+<script>
+"use strict";
+const SUITS = ["♠","♥","♦","♣"];              // 0黒 1赤 2赤 3黒
+const RANKS = ["","A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+const isRed = s => s === 1 || s === 2;
+
+let stock = [], waste = [], found = [[],[],[],[]], tab = [[],[],[],[],[],[],[]];
+let moves = 0, drawN = 1, history = [];
+let startTime = null, timerId = null, finished = false, autoRunning = false;
+let lastMoved = null; // {pile:'t3'|'f1'|'w', idx}
+
+const $ = id => document.getElementById(id);
+
+/* ---------- ゲーム開始 ---------- */
+function newGame(){
+  const deck = [];
+  for(let s=0;s<4;s++) for(let r=1;r<=13;r++) deck.push({r,s,up:false});
+  for(let i=deck.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [deck[i],deck[j]] = [deck[j],deck[i]];
+  }
+  tab = [[],[],[],[],[],[],[]];
+  for(let p=0;p<7;p++){
+    for(let k=0;k<=p;k++) tab[p].push(deck.pop());
+    tab[p][tab[p].length-1].up = true;
+  }
+  stock = deck;
+  waste = [];
+  found = [[],[],[],[]];
+  moves = 0; history = []; finished = false; autoRunning = false;
+  startTime = null; lastMoved = null;
+  if(timerId){clearInterval(timerId); timerId = null;}
+  $("time").textContent = "0:00";
+  $("overlay").classList.remove("show");
+  document.querySelectorAll(".confetti").forEach(e=>e.remove());
+  render();
+}
+
+/* ---------- 記録・時間 ---------- */
+function snapshot(){
+  history.push(JSON.stringify({stock,waste,found,tab,moves}));
+  if(history.length > 300) history.shift();
+}
+function undo(){
+  if(!history.length || finished || autoRunning) return;
+  const s = JSON.parse(history.pop());
+  stock=s.stock; waste=s.waste; found=s.found; tab=s.tab; moves=s.moves;
+  lastMoved = null;
+  render();
+}
+function tick(){
+  if(startTime === null){
+    startTime = Date.now();
+    timerId = setInterval(()=>{
+      const t = Math.floor((Date.now()-startTime)/1000);
+      $("time").textContent = Math.floor(t/60)+":"+String(t%60).padStart(2,"0");
+    },1000);
+  }
+}
+function countMove(){ moves++; tick(); }
+
+/* ---------- 判定 ---------- */
+function canTab(card, pile){
+  if(pile.length === 0) return card.r === 13;
+  const top = pile[pile.length-1];
+  return top.up && isRed(top.s) !== isRed(card.s) && card.r === top.r - 1;
+}
+function canFound(card){
+  return found[card.s].length === card.r - 1;
+}
+function autoFlip(p){
+  const pile = tab[p];
+  if(pile.length && !pile[pile.length-1].up) pile[pile.length-1].up = true;
+}
+
+/* ---------- 移動(スマートタップ) ---------- */
+function tryMoveRun(fromP, ci){
+  const run = tab[fromP].slice(ci);
+  const single = run.length === 1;
+  // 1) 一番上の1枚なら台札(組札)へ
+  if(single && canFound(run[0])){
+    snapshot();
+    found[run[0].s].push(tab[fromP].pop());
+    autoFlip(fromP); countMove();
+    lastMoved = {pile:"f"+run[0].s};
+    render(); checkWin(); return true;
+  }
+  // 2) 場札へ(カードのある列を優先)
+  const targets = [];
+  for(let p=0;p<7;p++){
+    if(p === fromP) continue;
+    if(canTab(run[0], tab[p])) targets.push(p);
+  }
+  // キングを空列から空列へ動かす無意味な移動は除外
+  const useful = targets.filter(p => !(run[0].r===13 && ci===0 && tab[p].length===0));
+  const pool = useful.length ? useful : [];
+  if(pool.length){
+    pool.sort((a,b)=>(tab[b].length?1:0)-(tab[a].length?1:0)); // 非空優先
+    const dest = pool[0];
+    snapshot();
+    tab[dest] = tab[dest].concat(tab[fromP].splice(ci));
+    autoFlip(fromP); countMove();
+    lastMoved = {pile:"t"+dest};
+    render(); return true;
+  }
+  return false;
+}
+function tapWaste(){
+  if(!waste.length) return;
+  const card = waste[waste.length-1];
+  if(canFound(card)){
+    snapshot();
+    found[card.s].push(waste.pop());
+    countMove(); lastMoved = {pile:"f"+card.s};
+    render(); checkWin(); return;
+  }
+  for(let p=0;p<7;p++){
+    if(canTab(card, tab[p])){
+      snapshot();
+      tab[p].push(waste.pop());
+      countMove(); lastMoved = {pile:"t"+p};
+      render(); return;
+    }
+  }
+}
+function tapFound(f){
+  if(!found[f].length || autoRunning) return;
+  const card = found[f][found[f].length-1];
+  for(let p=0;p<7;p++){
+    if(canTab(card, tab[p])){
+      snapshot();
+      tab[p].push(found[f].pop());
+      countMove(); lastMoved = {pile:"t"+p};
+      render(); return;
+    }
+  }
+}
+function tapStock(){
+  if(autoRunning) return;
+  snapshot();
+  if(stock.length){
+    for(let i=0;i<drawN && stock.length;i++){
+      const c = stock.pop(); c.up = true; waste.push(c);
+    }
+  }else if(waste.length){
+    while(waste.length){
+      const c = waste.pop(); c.up = false; stock.push(c);
+    }
+  }else{ history.pop(); return; }
+  countMove(); lastMoved = {pile:"w"};
+  render();
+}
+
+/* ---------- 自動回収 ---------- */
+function autoReady(){
+  if(stock.length || waste.length) return false;
+  return tab.every(pile => pile.every(c => c.up));
+}
+function autoCollect(){
+  if(!autoRunning){ autoRunning = true; snapshot(); }
+  let movedAny = false;
+  for(let p=0;p<7;p++){
+    const pile = tab[p];
+    if(pile.length && canFound(pile[pile.length-1])){
+      const c = pile.pop();
+      found[c.s].push(c);
+      countMove(); lastMoved = {pile:"f"+c.s};
+      movedAny = true;
+      break;
+    }
+  }
+  render();
+  if(checkWin()){ autoRunning = false; return; }
+  if(movedAny) setTimeout(autoCollect, 120);
+  else autoRunning = false;
+}
+
+/* ---------- ヒント ---------- */
+let hintTimer = null, msgTimer = null;
+function showMsg(text){
+  const m = $("msg");
+  m.textContent = text;
+  m.classList.add("show");
+  clearTimeout(msgTimer);
+  msgTimer = setTimeout(()=>m.classList.remove("show"), 2200);
+}
+function clearHint(){
+  clearTimeout(hintTimer);
+  document.querySelectorAll(".hint").forEach(e=>e.classList.remove("hint"));
+}
+function findHint(){
+  // 1) 組札へ出せる一番上のカード
+  for(let p=0;p<7;p++){
+    const pile = tab[p];
+    if(pile.length && canFound(pile[pile.length-1]))
+      return {src:{t:p, ci:pile.length-1}, dest:"f"+pile[pile.length-1].s};
+  }
+  if(waste.length && canFound(waste[waste.length-1]))
+    return {src:{w:true}, dest:"f"+waste[waste.length-1].s};
+  // 2) 裏カードをめくれる移動・列を空けられる移動
+  for(let p=0;p<7;p++){
+    const pile = tab[p];
+    for(let ci=0;ci<pile.length;ci++){
+      if(!pile[ci].up) continue;
+      const uncovers = ci > 0 && !pile[ci-1].up;
+      const frees = ci === 0 && pile[ci].r !== 13;
+      if(!uncovers && !frees) continue;
+      for(let q=0;q<7;q++){
+        if(q === p) continue;
+        if(pile[ci].r === 13 && ci === 0 && tab[q].length === 0) continue;
+        if(canTab(pile[ci], tab[q]))
+          return {src:{t:p, ci}, dest:"t"+q};
+      }
+    }
+  }
+  // 3) 捨て札から場札へ
+  if(waste.length){
+    const c = waste[waste.length-1];
+    for(let q=0;q<7;q++){
+      if(canTab(c, tab[q])) return {src:{w:true}, dest:"t"+q};
+    }
+  }
+  // 4) 山札をめくる
+  if(stock.length || waste.length) return {stock:true};
+  return null;
+}
+function markPileTop(destId){
+  let pileEl;
+  if(destId[0] === "f"){
+    pileEl = $(destId);
+  }else{
+    pileEl = document.querySelectorAll("#tableau .pile")[Number(destId.slice(1))];
+  }
+  if(!pileEl) return;
+  const cards = pileEl.querySelectorAll(".card");
+  const target = cards.length ? cards[cards.length-1] : pileEl.querySelector(".slot");
+  if(target) target.classList.add("hint");
+}
+function showHint(){
+  if(finished || autoRunning) return;
+  clearHint();
+  const h = findHint();
+  if(!h){
+    showMsg("有効な手が見つかりません");
+    return;
+  }
+  if(h.stock){
+    const el = $("stock").querySelector(".card, .slot");
+    if(el) el.classList.add("hint");
+    showMsg("山札をめくってみましょう");
+  }else{
+    if(h.src.w){
+      const wcards = $("waste").querySelectorAll(".card");
+      if(wcards.length) wcards[wcards.length-1].classList.add("hint");
+    }else{
+      const pileEl = document.querySelectorAll("#tableau .pile")[h.src.t];
+      const el = pileEl && pileEl.querySelector('.card[data-ci="'+h.src.ci+'"]');
+      if(el) el.classList.add("hint");
+    }
+    markPileTop(h.dest);
+  }
+  hintTimer = setTimeout(clearHint, 2800);
+}
+
+/* ---------- 勝利 ---------- */
+function checkWin(){
+  if(found.every(f => f.length === 13)){
+    finished = true;
+    if(timerId){clearInterval(timerId); timerId = null;}
+    $("result").textContent = "手数 " + moves + " ・ 時間 " + $("time").textContent;
+    $("overlay").classList.add("show");
+    confetti();
+    return true;
+  }
+  return false;
+}
+function confetti(){
+  const colors = ["#c9472e","#2c5077","#e8b64a","#fffdf6"];
+  for(let i=0;i<70;i++){
+    const d = document.createElement("div");
+    d.className = "confetti";
+    d.style.left = Math.random()*100 + "vw";
+    d.style.background = colors[i%colors.length];
+    d.style.animationDuration = (2.2 + Math.random()*2.5) + "s";
+    d.style.animationDelay = (Math.random()*1.2) + "s";
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(), 6000);
+  }
+}
+
+/* ---------- 描画 ---------- */
+function cardEl(c, moved){
+  const el = document.createElement("div");
+  el.className = "card " + (c.up ? (isRed(c.s)?"red":"black") : "down") + (moved?" moved":"");
+  if(c.up){
+    el.innerHTML = '<div class="corner">'+RANKS[c.r]+'<span class="suit">'+SUITS[c.s]+'</span></div>'
+                 + '<div class="big">'+SUITS[c.s]+'</div>';
+  }
+  return el;
+}
+function render(){
+  const ch = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ch"));
+  const upOff = ch*0.32, downOff = ch*0.14;
+
+  // 山札
+  const st = $("stock"); st.innerHTML = "";
+  if(stock.length){
+    const el = cardEl({up:false}); st.appendChild(el);
+  }else{
+    st.innerHTML = '<div class="slot">↺</div>';
+  }
+  // 捨て札(めくり枚数ぶん扇状に)
+  const wa = $("waste"); wa.innerHTML = "";
+  if(waste.length){
+    const shown = waste.slice(-Math.min(drawN, waste.length));
+    const cw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cw"));
+    shown.forEach((c,i)=>{
+      const el = cardEl(c, lastMoved && lastMoved.pile==="w" && i===shown.length-1);
+      el.style.left = (i * cw * 0.28) + "px";
+      wa.appendChild(el);
+    });
+  }else{
+    wa.innerHTML = '<div class="slot"></div>';
+  }
+  // 組札
+  for(let f=0;f<4;f++){
+    const el = $("f"+f); el.innerHTML = "";
+    if(found[f].length){
+      const c = found[f][found[f].length-1];
+      el.appendChild(cardEl(c, lastMoved && lastMoved.pile==="f"+f));
+    }else{
+      el.innerHTML = '<div class="slot">'+SUITS[f]+'</div>';
+    }
+  }
+  // 場札
+  const tb = $("tableau"); tb.innerHTML = "";
+  let maxH = 0;
+  for(let p=0;p<7;p++){
+    const pileEl = document.createElement("div");
+    pileEl.className = "pile"; pileEl.dataset.t = p;
+    if(!tab[p].length){
+      pileEl.innerHTML = '<div class="slot"></div>';
+    }
+    let y = 0;
+    tab[p].forEach((c,ci)=>{
+      const el = cardEl(c, lastMoved && lastMoved.pile==="t"+p && ci===tab[p].length-1);
+      el.style.top = y + "px";
+      el.dataset.ci = ci;
+      pileEl.appendChild(el);
+      y += c.up ? upOff : downOff;
+    });
+    const h = (tab[p].length ? y - (tab[p][tab[p].length-1].up?upOff:downOff) : 0) + ch;
+    if(h > maxH) maxH = h;
+    tb.appendChild(pileEl);
+  }
+  tb.style.minHeight = maxH + "px";
+  document.querySelectorAll("#tableau .pile").forEach(pe=>{ pe.style.height = maxH+"px"; });
+
+  $("moves").textContent = moves;
+  $("btnAuto").style.display = (!finished && autoReady() && found.some(f=>f.length<13)) ? "inline-block" : "none";
+  lastMoved = null;
+}
+
+/* ---------- サイズ調整 ---------- */
+function resize(){
+  const w = Math.min(window.innerWidth, 640) - 12; // 左右padding
+  const cw = Math.min(Math.floor((w - 6*6) / 7), 82);
+  document.documentElement.style.setProperty("--cw", cw+"px");
+  document.documentElement.style.setProperty("--ch", Math.round(cw*1.45)+"px");
+  render();
+}
+
+/* ---------- 入力(タップ+ドラッグ併用) ---------- */
+$("stock").addEventListener("click", tapStock);
+
+let drag = null; // {kind,p,ci,cards,startX,startY,active,layer,offX,offY,srcEls,hoverEl,rect}
+
+function cwVal(){ return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cw")); }
+function chVal(){ return parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ch")); }
+
+$("board").addEventListener("pointerdown", e=>{
+  if(finished || autoRunning || drag) return;
+  const cardDiv = e.target.closest(".card");
+  const pileEl = e.target.closest(".pile");
+  if(!cardDiv || !pileEl) return;
+  let kind = null, p = 0, ci = 0, cards = [];
+  if(pileEl.dataset.t !== undefined){
+    p = Number(pileEl.dataset.t);
+    ci = Number(cardDiv.dataset.ci);
+    const c = tab[p][ci];
+    if(!c || !c.up) return;
+    kind = "t"; cards = tab[p].slice(ci);
+  }else if(pileEl.id === "waste"){
+    if(!waste.length) return;
+    const wcards = pileEl.querySelectorAll(".card");
+    if(cardDiv !== wcards[wcards.length-1]) return; // 一番上のみ
+    kind = "w"; cards = [waste[waste.length-1]];
+  }else if(pileEl.dataset.f !== undefined){
+    p = Number(pileEl.dataset.f);
+    if(!found[p].length) return;
+    kind = "f"; cards = [found[p][found[p].length-1]];
+  }else{
+    return; // 山札はclickで処理
+  }
+  drag = {kind, p, ci, cards,
+          startX:e.clientX, startY:e.clientY,
+          active:false, layer:null, hoverEl:null, srcEls:[]};
+  if(kind === "t"){
+    pileEl.querySelectorAll(".card").forEach(el=>{
+      if(Number(el.dataset.ci) >= ci) drag.srcEls.push(el);
+    });
+  }else{
+    drag.srcEls = [cardDiv];
+  }
+  drag.rect = cardDiv.getBoundingClientRect();
+  e.preventDefault();
+});
+
+function startDrag(e){
+  drag.active = true;
+  clearHint();
+  const upOff = chVal()*0.32;
+  const layer = document.createElement("div");
+  layer.className = "drag-layer";
+  layer.style.width = cwVal() + "px";
+  layer.style.height = (chVal() + (drag.cards.length-1)*upOff) + "px";
+  drag.cards.forEach((c,i)=>{
+    const el = cardEl(c);
+    el.style.top = (i*upOff) + "px";
+    layer.appendChild(el);
+  });
+  document.body.appendChild(layer);
+  drag.layer = layer;
+  drag.offX = drag.startX - drag.rect.left;
+  drag.offY = drag.startY - drag.rect.top;
+  drag.srcEls.forEach(el=>el.classList.add("lifting"));
+  moveLayer(e);
+}
+function moveLayer(e){
+  drag.layer.style.left = (e.clientX - drag.offX) + "px";
+  drag.layer.style.top  = (e.clientY - drag.offY) + "px";
+}
+function pileAt(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el && el.closest(".pile");
+}
+function validDest(d, pileEl){
+  const c = d.cards[0];
+  if(pileEl.dataset.t !== undefined){
+    const q = Number(pileEl.dataset.t);
+    if(d.kind === "t" && q === d.p) return null;
+    return canTab(c, tab[q]) ? {t:q} : null;
+  }
+  if(pileEl.dataset.f !== undefined){
+    const f = Number(pileEl.dataset.f);
+    if(d.cards.length === 1 && d.kind !== "f" && c.s === f && canFound(c)) return {f};
+  }
+  return null;
+}
+function updateHover(e){
+  if(drag.hoverEl){ drag.hoverEl.classList.remove("drop-ok"); drag.hoverEl = null; }
+  const pileEl = pileAt(e.clientX, e.clientY);
+  if(pileEl && validDest(drag, pileEl)){
+    const cs = pileEl.querySelectorAll(".card:not(.lifting)");
+    const target = cs.length ? cs[cs.length-1] : pileEl.querySelector(".slot");
+    if(target){ target.classList.add("drop-ok"); drag.hoverEl = target; }
+  }
+}
+function dropMove(d, dest){
+  snapshot();
+  if(dest.f !== undefined){
+    const c = d.kind === "t" ? tab[d.p].pop() : waste.pop();
+    found[c.s].push(c);
+    if(d.kind === "t") autoFlip(d.p);
+    lastMoved = {pile:"f"+c.s};
+  }else{
+    const q = dest.t;
+    if(d.kind === "t"){
+      tab[q] = tab[q].concat(tab[d.p].splice(d.ci));
+      autoFlip(d.p);
+    }else if(d.kind === "w"){
+      tab[q].push(waste.pop());
+    }else{
+      tab[q].push(found[d.p].pop());
+    }
+    lastMoved = {pile:"t"+q};
+  }
+  countMove(); render(); checkWin();
+}
+function endDrag(d, e, cancelled){
+  if(d.hoverEl) d.hoverEl.classList.remove("drop-ok");
+  if(d.layer) d.layer.remove();
+  if(!d.active){
+    if(cancelled) return;
+    // タップ扱い → スマート移動
+    if(d.kind === "t") tryMoveRun(d.p, d.ci);
+    else if(d.kind === "w") tapWaste();
+    else tapFound(d.p);
+    return;
+  }
+  let done = false;
+  if(!cancelled){
+    const pileEl = pileAt(e.clientX, e.clientY);
+    if(pileEl){
+      const dest = validDest(d, pileEl);
+      if(dest){ dropMove(d, dest); done = true; }
+    }
+  }
+  if(!done) d.srcEls.forEach(el=>el.classList.remove("lifting"));
+}
+window.addEventListener("pointermove", e=>{
+  if(!drag) return;
+  if(!drag.active){
+    if(Math.hypot(e.clientX-drag.startX, e.clientY-drag.startY) < 6) return;
+    startDrag(e);
+  }
+  moveLayer(e);
+  updateHover(e);
+});
+window.addEventListener("pointerup", e=>{
+  if(!drag) return;
+  const d = drag; drag = null;
+  endDrag(d, e, false);
+});
+window.addEventListener("pointercancel", e=>{
+  if(!drag) return;
+  const d = drag; drag = null;
+  endDrag(d, e, true);
+});
+
+$("btnNew").addEventListener("click", ()=>{
+  if(moves === 0 || finished || confirm("新しいゲームを始めますか?")) newGame();
+});
+$("btnUndo").addEventListener("click", undo);
+$("btnHint").addEventListener("click", showHint);
+$("btnAuto").addEventListener("click", ()=>{ if(!autoRunning) autoCollect(); });
+$("btnAgain").addEventListener("click", newGame);
+$("btnDraw").addEventListener("click", ()=>{
+  drawN = drawN === 1 ? 3 : 1;
+  $("btnDraw").textContent = "めくり: " + drawN + "枚";
+  render();
+});
+
+window.addEventListener("resize", resize);
+newGame();
+resize();
+</script>
+</body>
+</html>
