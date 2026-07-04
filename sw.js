@@ -1,5 +1,5 @@
 /* 方眼ソリティア Service Worker */
-const CACHE = "hougan-solitaire-v1";
+const CACHE = "hougan-solitaire-v2";
 const ASSETS = [
   "./",
   "./index.html",

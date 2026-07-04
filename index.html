@@ -65,6 +65,7 @@ button.accent:active{background:var(--vermillion);color:var(--card);}
 .row-top{
   display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px;
 }
+body.right .row-top{direction:rtl;}
 #tableau{
   display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
 }
@@ -163,6 +164,7 @@ footer{
     <span>時間 <b id="time">0:00</b></span>
   </div>
   <div class="btns">
+    <button id="btnSide">山札: 左</button>
     <button id="btnDraw">めくり: 1枚</button>
     <button id="btnHint">ヒント</button>
     <button id="btnUndo">戻す</button>
@@ -212,6 +214,24 @@ const isRed = s => s === 1 || s === 2;
 
 let stock = [], waste = [], found = [[],[],[],[]], tab = [[],[],[],[],[],[],[]];
 let moves = 0, drawN = 1, history = [];
+let stockSide = "left"; // "left" | "right"
+const SAVE_KEY = "hougan-solitaire-settings";
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
+    if(s.drawN === 3) drawN = 3;
+    if(s.stockSide === "right") stockSide = "right";
+  }catch(e){}
+}
+function saveSettings(){
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify({drawN, stockSide}));
+  }catch(e){}
+}
+function applySide(){
+  document.body.classList.toggle("right", stockSide === "right");
+  $("btnSide").textContent = "山札: " + (stockSide === "right" ? "右" : "左");
+}
 let startTime = null, timerId = null, finished = false, autoRunning = false;
 let lastMoved = null; // {pile:'t3'|'f1'|'w', idx}
 
@@ -522,7 +542,12 @@ function render(){
     const cw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--cw"));
     shown.forEach((c,i)=>{
       const el = cardEl(c, lastMoved && lastMoved.pile==="w" && i===shown.length-1);
-      el.style.left = (i * cw * 0.28) + "px";
+      if(stockSide === "right"){
+        el.style.left = "auto";
+        el.style.right = (i * cw * 0.28) + "px";
+      }else{
+        el.style.left = (i * cw * 0.28) + "px";
+      }
       wa.appendChild(el);
     });
   }else{
@@ -744,9 +769,19 @@ $("btnAgain").addEventListener("click", newGame);
 $("btnDraw").addEventListener("click", ()=>{
   drawN = drawN === 1 ? 3 : 1;
   $("btnDraw").textContent = "めくり: " + drawN + "枚";
+  saveSettings();
+  render();
+});
+$("btnSide").addEventListener("click", ()=>{
+  stockSide = stockSide === "left" ? "right" : "left";
+  applySide();
+  saveSettings();
   render();
 });
 
+loadSettings();
+applySide();
+$("btnDraw").textContent = "めくり: " + drawN + "枚";
 window.addEventListener("resize", resize);
 newGame();
 resize();
