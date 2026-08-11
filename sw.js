@@ -4,7 +4,7 @@
 /* 方眼ソリティア Service Worker */
 const TT_NS = 'tt:solitaire:';
 const TT_OLD = 'hougan-solitaire-v2';   /* 旧名。次の更新のときに消して構いません */
-const CACHE = TT_NS + 'v2';
+const CACHE = TT_NS + 'v3';
 const ASSETS = [
   "./",
   "./index.html",
