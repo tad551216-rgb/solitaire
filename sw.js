@@ -1,5 +1,10 @@
+/* つくる手帖 ── キャッシュはオリジン単位で共有されます。
+   github.io は全リポジトリが同じオリジンなので、
+   自分の名前空間（TT_NS）のものだけを消します。 */
 /* 方眼ソリティア Service Worker */
-const CACHE = "hougan-solitaire-v2";
+const TT_NS = 'tt:solitaire:';
+const TT_OLD = 'hougan-solitaire-v2';   /* 旧名。次の更新のときに消して構いません */
+const CACHE = TT_NS + 'v2';
 const ASSETS = [
   "./",
   "./index.html",
@@ -19,7 +24,7 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => (k.startsWith(TT_NS) || k === TT_OLD) && k !== CACHE).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
