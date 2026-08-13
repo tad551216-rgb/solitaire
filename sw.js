@@ -3,8 +3,7 @@
    自分の名前空間（TT_NS）のものだけを消します。 */
 /* 方眼ソリティア Service Worker */
 const TT_NS = 'tt:solitaire:';
-const TT_OLD = 'hougan-solitaire-v2';   /* 旧名。次の更新のときに消して構いません */
-const CACHE = TT_NS + 'v3';
+const CACHE = TT_NS + 'v4';          /* ← 更新のたびに数字を上げる */
 const ASSETS = [
   "./",
   "./index.html",
@@ -24,13 +23,39 @@ self.addEventListener("install", e => {
 self.addEventListener("activate", e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => (k.startsWith(TT_NS) || k === TT_OLD) && k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k.startsWith(TT_NS) && k !== CACHE).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
 
+/* HTML（画面そのもの）はネットワーク優先。
+   これで次回からは番号を上げなくても最新が表示されます。
+   通信できないときはキャッシュを使うので、オフラインでも動きます。
+   画像などそれ以外はキャッシュ優先のまま。 */
+function isHTML(req){
+  return req.mode === "navigate" ||
+         (req.headers.get("accept") || "").includes("text/html");
+}
+
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+
+  if (isHTML(e.request)) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+        }
+        return res;
+      }).catch(() =>
+        caches.match(e.request, { ignoreSearch: true })
+          .then(cached => cached || caches.match("./index.html"))
+      )
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(cached => {
       if (cached) return cached;
