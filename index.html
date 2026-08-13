@@ -23,6 +23,10 @@
   --card:#fffdf6;
   --cw:48px;
   --ch:70px;
+  --gap:6px;
+  --rowgap:10px;
+  --boardw:640px;
+  --uifs:12px;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
@@ -43,31 +47,31 @@ body{
 }
 header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:8px 10px 4px;max-width:640px;margin:0 auto;flex-wrap:wrap;gap:4px;
+  padding:8px 10px 4px;max-width:var(--boardw);margin:0 auto;flex-wrap:wrap;gap:4px;
 }
 h1{
-  font-size:17px;font-weight:700;color:var(--indigo-deep);letter-spacing:.06em;
+  font-size:calc(var(--uifs) * 1.42);font-weight:700;color:var(--indigo-deep);letter-spacing:.06em;
 }
 h1 .mark{color:var(--vermillion);}
-.stats{display:flex;gap:12px;font-size:12px;color:var(--indigo);font-variant-numeric:tabular-nums;}
+.stats{display:flex;gap:12px;font-size:var(--uifs);color:var(--indigo);font-variant-numeric:tabular-nums;}
 .stats b{font-weight:700;}
 .btns{display:flex;gap:6px;}
 button{
-  font-family:inherit;font-size:12px;font-weight:600;
+  font-family:inherit;font-size:var(--uifs);font-weight:600;
   color:var(--indigo-deep);background:var(--card);
   border:1.5px solid var(--indigo);border-radius:6px;
-  padding:5px 10px;cursor:pointer;
+  padding:.42em .85em;cursor:pointer;
 }
 button:active{background:var(--indigo);color:var(--card);}
 button.accent{border-color:var(--vermillion);color:var(--vermillion);}
 button.accent:active{background:var(--vermillion);color:var(--card);}
-#board{max-width:640px;margin:4px auto 24px;padding:0 6px;}
+#board{max-width:var(--boardw);margin:4px auto 24px;padding:0 6px;}
 .row-top{
-  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px;
+  display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap);margin-bottom:var(--rowgap);
 }
 body.right .row-top{direction:rtl;}
 #tableau{
-  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+  display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap);
 }
 .pile{position:relative;min-height:var(--ch);}
 .slot{
@@ -595,11 +599,39 @@ function render(){
 }
 
 /* ---------- サイズ調整 ---------- */
+const MAX_CW = 190;          // 札のはば上限
+const CH_RATIO = 1.45;       // 札のたて/よこ比
+const V_UNITS  = 4.6;        // たてに確保する札の枚数ぶん(組札1 + 場札3.6)
+
 function resize(){
-  const w = Math.min(window.innerWidth, 640) - 12; // 左右padding
-  const cw = Math.min(Math.floor((w - 6*6) / 7), 82);
-  document.documentElement.style.setProperty("--cw", cw+"px");
-  document.documentElement.style.setProperty("--ch", Math.round(cw*1.45)+"px");
+  const doc = document.documentElement;
+  const padX = 12;                                   // #board の左右padding
+  const availW = Math.max(220, window.innerWidth - padX);
+
+  // --- 幅から求める(すきまは札はばに比例。2回まわして収束させる) ---
+  let gap = 6;
+  let cwW = Math.floor((availW - gap*6) / 7);
+  gap = Math.min(18, Math.max(6, Math.round(cwW * 0.11)));
+  cwW = Math.floor((availW - gap*6) / 7);
+
+  // --- 高さから求める(縦スクロールなしで一画面に収まるように) ---
+  const headH = (document.querySelector("header")||{offsetHeight:56}).offsetHeight || 56;
+  const reserve = headH + 86;                        // 自動でそろえるボタン + フッタ + 余白
+  const availH = Math.max(200, window.innerHeight - reserve);
+  const cwH = Math.floor(availH / (CH_RATIO * V_UNITS));
+
+  // 高さが足りない端末(横向きスマホなど)でも小さくしすぎない。
+  // 下限を割る場合はたてスクロールを許容する。
+  const floor = Math.min(cwW, 46);
+  const cw = Math.max(floor, Math.min(cwW, cwH, MAX_CW));
+  gap = Math.min(18, Math.max(6, Math.round(cw * 0.11)));
+
+  doc.style.setProperty("--cw", cw+"px");
+  doc.style.setProperty("--ch", Math.round(cw*CH_RATIO)+"px");
+  doc.style.setProperty("--gap", gap+"px");
+  doc.style.setProperty("--rowgap", Math.round(gap*1.7)+"px");
+  doc.style.setProperty("--boardw", (cw*7 + gap*6 + padX)+"px");
+  doc.style.setProperty("--uifs", Math.max(12, Math.min(17, Math.round(cw*0.17)))+"px");
   render();
 }
 
@@ -784,9 +816,18 @@ $("btnSide").addEventListener("click", ()=>{
 loadSettings();
 applySide();
 $("btnDraw").textContent = "めくり: " + drawN + "枚";
-window.addEventListener("resize", resize);
+let _rzTimer = null;
+function resizeSoon(){
+  clearTimeout(_rzTimer);
+  _rzTimer = setTimeout(()=>{ resize(); requestAnimationFrame(resize); }, 60);
+}
+window.addEventListener("resize", resizeSoon);
+window.addEventListener("orientationchange", resizeSoon);
+if(window.visualViewport) window.visualViewport.addEventListener("resize", resizeSoon);
+
 newGame();
 resize();
+requestAnimationFrame(resize);
 </script>
 </body>
 </html>
