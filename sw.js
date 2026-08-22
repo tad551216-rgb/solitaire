@@ -3,7 +3,7 @@
    自分の名前空間（TT_NS）のものだけを消します。 */
 /* 方眼ソリティア Service Worker */
 const TT_NS = 'tt:solitaire:';
-const CACHE = TT_NS + 'v4';          /* ← 更新のたびに数字を上げる */
+const CACHE = TT_NS + 'v5';          /* ← 更新のたびに数字を上げる */
 const ASSETS = [
   "./",
   "./index.html",
